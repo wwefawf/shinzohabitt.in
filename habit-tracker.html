@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Log</title>
+<style>
+  :root{
+    --bg:#f6f4ef; --surface:#fffefb; --fg:#1d1f1c; --muted:#8b8d86; --line:#e8e5dc;
+    --accent:#3d7a5a; --accent2:#86c3a0; --slip:#c4624a;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0f1110; --surface:#171a18; --fg:#ecefe9; --muted:#8a9089; --line:#262b28;
+           --accent:#6fcf9c; --accent2:#3d9a6c; --slip:#e0806a; }
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{background:var(--bg)}
+  body{
+    margin:0;color:var(--fg);font:16px/1.55 var(--sans);min-height:100vh;
+    background:radial-gradient(900px 420px at 50% -120px,color-mix(in srgb,var(--accent) 14%,transparent),transparent 70%),var(--bg);
+  }
+  main{max-width:520px;margin:0 auto;padding:36px 20px 80px;animation:fade .5s ease both}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  button{font:inherit;color:inherit;cursor:pointer}
+
+  header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+  header .t{font-family:var(--serif);font-size:22px;letter-spacing:.01em}
+  header .d{color:var(--muted);font-size:13px}
+
+  /* ring */
+  .hero{display:flex;flex-direction:column;align-items:center;margin:18px 0 26px}
+  .ringwrap{position:relative;width:240px;height:240px}
+  .ringwrap svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .track{fill:none;stroke:var(--line);stroke-width:9}
+  .prog{fill:none;stroke:url(#g);stroke-width:9;stroke-linecap:round;transition:stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1)}
+  .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .num{font-family:var(--serif);font-size:84px;line-height:1;letter-spacing:-2px}
+  .unit{color:var(--muted);font-size:12px;letter-spacing:.18em;text-transform:uppercase;margin-top:6px}
+  .goal{margin-top:16px;font-size:14px;color:var(--muted);text-align:center}
+  .goal b{color:var(--fg);font-weight:500}
+
+  /* start system */
+  .startbox{margin-top:18px;display:flex;flex-direction:column;align-items:center;gap:12px}
+  .bigstart{
+    padding:14px 34px;border-radius:999px;border:0;background:var(--fg);color:var(--bg);
+    font-weight:600;font-size:16px;letter-spacing:.01em;transition:transform .15s,opacity .15s;
+    box-shadow:0 14px 28px -14px color-mix(in srgb,var(--fg) 60%,transparent)
+  }
+  .bigstart:hover{opacity:.9}
+  .bigstart:active{transform:scale(.96)}
+  .linkbtn{background:none;border:0;padding:0;color:var(--muted);font-size:13px;text-decoration:underline}
+  .dateRow{display:flex;gap:8px;align-items:center}
+  .dateRow input{background:transparent;color:var(--fg);border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;font-size:14px}
+  .dateRow button{padding:9px 16px;border-radius:10px;border:0;background:var(--accent);color:#fff;font-size:14px;font-weight:500}
+  .notice{font-size:13px;color:var(--muted);text-align:center;max-width:340px}
+
+  /* week strip */
+  .week{display:flex;justify-content:space-between;margin-bottom:22px}
+  .wd{display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;width:13%}
+  .wd .l{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+  .wd .c{
+    width:100%;max-width:44px;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-size:14px;
+    border:1.5px solid var(--line);background:transparent;transition:.2s;
+  }
+  .wd .c.clean{background:var(--accent);border-color:var(--accent);color:#fff}
+  .wd .c.assumed{background:color-mix(in srgb,var(--accent) 16%,transparent);border-color:transparent}
+  .wd .c.slip{background:var(--slip);border-color:var(--slip);color:#fff}
+  .wd.sel .c{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--fg)}
+  .wd.today .l{color:var(--fg);font-weight:600}
+
+  /* check-in */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 1px 0 rgba(0,0,0,.02),0 14px 34px -22px rgba(0,0,0,.25)}
+  .ch{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+  .ch h2{margin:0;font-family:var(--serif);font-weight:400;font-size:21px}
+  .ch .st{font-size:12px;color:var(--muted);opacity:0;transition:opacity .3s}
+  .ch .st.on{opacity:1}
+  .choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .choice{
+    display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 10px;border-radius:14px;
+    border:1.5px solid var(--line);background:transparent;transition:.18s;font-weight:500
+  }
+  .choice:active{transform:scale(.97)}
+  .choice svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .choice.clean.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .choice.slip.on{background:var(--slip);border-color:var(--slip);color:#fff}
+  .hint{min-height:22px;margin:12px 2px 6px;font-size:13px;color:var(--muted)}
+  .moods{display:flex;gap:8px;margin:6px 0 14px}
+  .mood{flex:1;padding:8px 0;font-size:22px;line-height:1;border-radius:12px;border:1.5px solid transparent;background:color-mix(in srgb,var(--muted) 10%,transparent);filter:grayscale(1);opacity:.55;transition:.18s}
+  .mood.on{filter:none;opacity:1;border-color:var(--fg)}
+  textarea{
+    width:100%;min-height:130px;resize:vertical;background:transparent;color:var(--fg);
+    border:1.5px solid var(--line);border-radius:14px;padding:14px;font:inherit;font-family:var(--serif);font-size:17px;line-height:1.55;
+  }
+  textarea:focus{outline:none;border-color:var(--accent)}
+  textarea::placeholder{color:var(--muted)}
+  .del{display:block;margin:12px auto 0;background:none;border:0;color:var(--muted);font-size:12px;text-decoration:underline}
+
+  /* journal */
+  .sec{margin-top:40px}
+  .sec h3{font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+  .heat{display:grid;grid-template-columns:repeat(15,1fr);grid-template-rows:repeat(7,auto);grid-auto-flow:column;gap:5px}
+  .hc{aspect-ratio:1;border-radius:4px;border:0;padding:0;background:color-mix(in srgb,var(--muted) 14%,transparent)}
+  .hc.clean{background:var(--accent)}
+  .hc.assumed{background:color-mix(in srgb,var(--accent) 28%,transparent)}
+  .hc.slip{background:var(--slip)}
+  .hc.future{visibility:hidden}
+  .hc.sel{outline:2px solid var(--fg);outline-offset:1px}
+  .legend{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-top:10px;justify-content:flex-end}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+  .search{width:100%;margin:26px 0 6px;padding:11px 14px;border-radius:12px;border:1.5px solid var(--line);background:transparent;color:var(--fg);font:inherit;font-size:14px}
+  .search:focus{outline:none;border-color:var(--muted)}
+  .entry{padding:18px 2px;border-bottom:1px solid var(--line);cursor:pointer}
+  .meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  .dot.slip{background:var(--slip)}
+  .meta .m{margin-left:auto;font-size:16px}
+  .note{white-space:pre-wrap;word-wrap:break-word;font-family:var(--serif);font-size:16px;line-height:1.6}
+  .note.none{color:var(--muted);font-style:italic}
+  .empty{color:var(--muted);font-size:14px;padding:8px 0}
+
+  /* ---- live feel ---- */
+  #fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60}
+  .quote{font-family:var(--serif);font-style:italic;color:var(--muted);font-size:15px;margin:0}
+  .ringwrap{isolation:isolate}
+  .ringwrap::before{content:"";position:absolute;inset:16px;border-radius:50%;z-index:-1;
+    background:radial-gradient(closest-side,color-mix(in srgb,var(--accent) 18%,transparent),transparent);
+    animation:breathe 5s ease-in-out infinite}
+  @keyframes breathe{50%{transform:scale(1.09);opacity:.55}}
+  .live{display:flex;align-items:center;gap:9px;margin-top:16px;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .live[hidden]{display:none}
+  .live b{color:var(--fg);font-weight:500;letter-spacing:.02em}
+  .pulse{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 60%,transparent)}70%,100%{box-shadow:0 0 0 9px transparent}}
+  .count{font-size:12px;color:var(--muted);margin-top:8px;min-height:18px}
+  .ch .st{font-variant-numeric:tabular-nums}
+
+  .past{border:1.5px dashed color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:20px;padding:22px;
+    background:linear-gradient(160deg,color-mix(in srgb,var(--accent) 8%,transparent),transparent)}
+  .past.swap{animation:swap .5s ease}
+  @keyframes swap{from{opacity:0;transform:translateY(8px)}}
+  .pq{font-family:var(--serif);font-style:italic;font-size:18px;line-height:1.6;white-space:pre-wrap;
+    display:-webkit-box;-webkit-line-clamp:8;-webkit-box-orient:vertical;overflow:hidden}
+  .pq::before{content:"\201C"}
+  .pq::after{content:"\201D"}
+  .pm{font-size:12px;color:var(--muted);margin-top:12px}
+  .prow{display:flex;gap:18px;margin-top:12px}
+
+  .feed{position:relative;padding-left:24px}
+  .feed::before{content:"";position:absolute;left:5px;top:8px;bottom:8px;width:2px;background:var(--line);border-radius:2px}
+  .wk{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:26px 0 4px}
+  .wk:first-child{margin-top:8px}
+  .feed .entry{position:relative;padding:0;margin:14px 0;border-bottom:0;
+    opacity:0;transform:translateY(14px);transition:opacity .55s ease,transform .55s ease}
+  .feed .entry.in{opacity:1;transform:none}
+  .feed .entry::before{content:"";position:absolute;left:-24px;top:8px;width:12px;height:12px;border-radius:50%;
+    background:var(--accent);border:3px solid var(--bg);box-sizing:content-box;margin-left:-3px}
+  .feed .entry.slip::before{background:var(--slip)}
+  .bubble{background:var(--surface);border:1px solid var(--line);border-radius:4px 18px 18px 18px;padding:14px 16px;
+    transition:transform .2s,box-shadow .2s}
+  .entry:hover .bubble{transform:translateX(3px);box-shadow:0 12px 26px -20px rgba(0,0,0,.4)}
+  .when{display:flex;align-items:center;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .when .m{margin-left:auto;font-size:17px}
+  .foot{font-size:11px;color:var(--muted);margin-top:8px;letter-spacing:.03em}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  footer{margin-top:44px;display:flex;gap:18px;justify-content:center;font-size:12px}
+  footer button{background:none;border:0;color:var(--muted);text-decoration:underline}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="t">Daily Log</div>
+    <div class="d" id="todayLabel"></div>
+  </header>
+
+  <p class="quote" id="quote"></p>
+
+  <section class="hero">
+    <div class="ringwrap">
+      <svg viewBox="0 0 240 240" aria-hidden="true">
+        <defs>
+          <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" style="stop-color:var(--accent2)"/>
+            <stop offset="1" style="stop-color:var(--accent)"/>
+          </linearGradient>
+        </defs>
+        <circle class="track" cx="120" cy="120" r="108"/>
+        <circle class="prog" id="prog" cx="120" cy="120" r="108"/>
+      </svg>
+      <div class="center">
+        <div class="num" id="streak">0</div>
+        <div class="unit" id="unit">days free</div>
+      </div>
+    </div>
+    <div class="live" id="live" hidden><span class="pulse"></span><span>Running for <b id="liveText"></b></span></div>
+    <div class="goal" id="goal"></div>
+    <div class="startbox" id="startbox"></div>
+  </section>
+
+  <nav class="week" id="week" aria-label="Last 7 days"></nav>
+
+  <section class="card">
+    <div class="ch">
+      <h2 id="dayTitle">Today</h2>
+      <span class="st" id="saved">Saved</span>
+    </div>
+    <div class="choices">
+      <button class="choice clean" id="bClean">
+        <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Stayed clean
+      </button>
+      <button class="choice slip" id="bSlip">
+        <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 4v4.5h4.5"/></svg>Slipped
+      </button>
+    </div>
+    <div class="hint" id="hint">How did the day go?</div>
+    <div class="moods" id="moods"></div>
+    <textarea id="note" placeholder="Write a few lines for future you…"></textarea>
+    <div class="count" id="count"></div>
+    <button class="del" id="del" hidden>Delete this entry</button>
+  </section>
+
+  <section class="sec">
+    <h3>Last 15 weeks</h3>
+    <div class="heat" id="heat"></div>
+    <div class="legend">
+      <span><i style="background:var(--accent)"></i>Clean</span>
+      <span><i style="background:color-mix(in srgb,var(--accent) 28%,transparent)"></i>Not logged</span>
+      <span><i style="background:var(--slip)"></i>Slipped</span>
+    </div>
+  </section>
+
+  <section class="sec" id="pastSec" hidden>
+    <h3>A note from past you</h3>
+    <div class="past" id="past"></div>
+  </section>
+
+  <section class="sec">
+    <h3>Journal</h3>
+    <input class="search" id="search" placeholder="Search your notes…" autocomplete="off">
+    <div class="feed" id="list"></div>
+  </section>
+
+  <footer>
+    <button id="export">Export backup</button>
+    <button id="import">Import backup</button>
+    <input type="file" id="file" accept="application/json" hidden>
+  </footer>
+</main>
+
+<canvas id="fx"></canvas>
+<script>
+(function(){
+  var KEY = "daily-log-v1";
+  var MOODS = [["😞","Rough"],["😕","Low"],["😐","Okay"],["🙂","Good"],["😄","Great"]];
+  var MILESTONES = [1,3,7,14,21,30,45,60,90,120,180,270,365,500,730,1000,1500,2000];
+  var C = 2*Math.PI*108;
+
+  var data = load();
+  var $ = function(id){ return document.getElementById(id); };
+  var status = null, mood = null, timer = null, savedTimer = null;
+
+  function load(){ try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ return {}; } }
+  function persist(){ try { localStorage.setItem(KEY, JSON.stringify(data)); } catch(e){} }
+
+  function pad(n){ return (n<10?"0":"")+n; }
+  function ymd(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function toUTC(s){ var p=s.split("-"); return Date.UTC(+p[0],+p[1]-1,+p[2]); }
+  function diffDays(a,b){ return Math.round((toUTC(b)-toUTC(a))/86400000); }
+  function addDays(s,n){ var d=new Date(toUTC(s)+n*86400000); return d.getUTCFullYear()+"-"+pad(d.getUTCMonth()+1)+"-"+pad(d.getUTCDate()); }
+  function local(s){ var p=s.split("-"); return new Date(+p[0],+p[1]-1,+p[2]); }
+
+  var today = ymd(new Date());
+  var sel = today;
+
+  /* streak meta: current start date + list of ended streaks */
+  var META_KEY = KEY+"-meta";
+  var meta = loadMeta();
+  var showDate = false, notice = "";
+  function loadMeta(){
+    try{
+      var m = JSON.parse(localStorage.getItem(META_KEY));
+      if(m && typeof m==="object") return {start:m.start||null, past:Array.isArray(m.past)?m.past:[]};
+    }catch(e){}
+    return null;
+  }
+  function saveMeta(){ try{ localStorage.setItem(META_KEY, JSON.stringify(meta)); }catch(e){} }
+  function migrate(){
+    var m = {start:null, past:[]};
+    var keys = Object.keys(data).sort();
+    if(!keys.length) return m;
+    var segStart = keys[0];
+    keys.forEach(function(k){
+      if(data[k].status!=="slip") return;
+      var days = diffDays(segStart,k);
+      if(days>0) m.past.push({start:segStart,end:addDays(k,-1),days:days});
+      segStart = addDays(k,1);
+    });
+    if(segStart<=today) m.start = segStart;
+    return m;
+  }
+  if(!meta){ meta = migrate(); saveMeta(); }
+
+  function inStreak(k){
+    if(meta.start && k>=meta.start && k<=today) return true;
+    for(var i=0;i<meta.past.length;i++){ var p=meta.past[i]; if(k>=p.start && k<=p.end) return true; }
+    return false;
+  }
+  function dayState(k){
+    if(data[k]) return data[k].status;
+    return inStreak(k) ? "assumed" : "none";
+  }
+
+  function startStreak(d){
+    flush();
+    notice = "";
+    var slips = Object.keys(data).filter(function(k){ return data[k].status==="slip" && k>=d && k<=today; }).sort();
+    if(slips.length){
+      var L = slips[slips.length-1];
+      d = addDays(L,1);
+      notice = "You logged a slip on "+longDate(L)+", so your streak begins "+(d>today?"tomorrow.":"the day after.");
+    }
+    meta.past = meta.past.filter(function(p){ return p.end < d; });
+    meta.start = d>today ? null : d;
+    showDate = false;
+    saveMeta(); renderAll(); tick();
+    if(meta.start===today) confetti(60);
+  }
+
+  function stats(){
+    var cur = meta.start ? Math.max(0,diffDays(meta.start,today)+1) : 0;
+    var best = cur;
+    meta.past.forEach(function(p){ if(p.days>best) best = p.days; });
+    return {
+      streak:cur, best:best, active:!!meta.start,
+      count:meta.past.length+(meta.start?1:0),
+      last:meta.past.length ? meta.past[meta.past.length-1] : null
+    };
+  }
+
+  function label(k){
+    if(k===today) return "Today";
+    if(k===addDays(today,-1)) return "Yesterday";
+    return local(k).toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"short"});
+  }
+  function longDate(k){
+    return local(k).toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short",year:"numeric"});
+  }
+
+  /* ---------- live helpers ---------- */
+  var QUOTES = [
+    "Small days add up.",
+    "Urges peak and pass. Ride the wave.",
+    "Write it down. Future you will read it.",
+    "One day at a time is the whole trick.",
+    "The streak is a record, not a verdict.",
+    "Notice the urge. You don't have to obey it.",
+    "Tired is not the same as weak.",
+    "Today's note is tomorrow's proof.",
+    "You're building trust with yourself.",
+    "Change your surroundings, change the mood.",
+    "Be honest here. It's only for you.",
+    "Every entry counts, even the hard ones.",
+    "Progress is quiet.",
+    "Be kind to yourself today."
+  ];
+  function initQuote(){
+    var i = Math.floor(toUTC(today)/86400000) % QUOTES.length;
+    $("quote").textContent = QUOTES[i];
+  }
+
+  var reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var shown = -1;
+  function setNum(n){
+    var el = $("streak");
+    if(shown===-1 && n>0 && !reduceMotion){
+      var t0 = null;
+      var step = function(t){
+        if(t0===null) t0 = t;
+        var p = Math.min(1,(t-t0)/900);
+        el.textContent = Math.round(n*(1-Math.pow(1-p,3)));
+        if(p<1) requestAnimationFrame(step); else el.textContent = n;
+      };
+      requestAnimationFrame(step);
+    } else el.textContent = n;
+    shown = n;
+  }
+
+  function confetti(n){
+    if(reduceMotion) return;
+    var cv = $("fx"), cx = cv.getContext("2d");
+    cv.width = innerWidth; cv.height = innerHeight;
+    var cols = ["#6fcf9c","#86c3a0","#e9c46a","#f4a261","#8ab4f8","#e76f51"];
+    var ps = [];
+    for(var i=0;i<n;i++) ps.push({
+      x:innerWidth/2, y:innerHeight*0.38, vx:(Math.random()-.5)*11, vy:-Math.random()*10-3,
+      s:5+Math.random()*5, c:cols[i%cols.length], r:Math.random()*6, vr:(Math.random()-.5)*.35, l:1
+    });
+    (function f(){
+      cx.clearRect(0,0,cv.width,cv.height);
+      var alive = false;
+      ps.forEach(function(p){
+        p.vy += .27; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.l -= .009;
+        if(p.l>0){
+          alive = true;
+          cx.save(); cx.globalAlpha = Math.max(0,p.l); cx.translate(p.x,p.y); cx.rotate(p.r);
+          cx.fillStyle = p.c; cx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6); cx.restore();
+        }
+      });
+      if(alive) requestAnimationFrame(f); else cx.clearRect(0,0,cv.width,cv.height);
+    })();
+  }
+
+  function tick(){
+    var now = new Date();
+    if(ymd(now)!==today){ flush(); location.reload(); return; }
+    var box = $("live");
+    if(!meta.start){ box.hidden = true; return; }
+    box.hidden = false;
+    var s = Math.max(0, Math.floor((now.getTime()-local(meta.start).getTime())/1000));
+    var d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60), sec = s%60;
+    $("liveText").textContent = d+"d "+pad(h)+"h "+pad(m)+"m "+pad(sec)+"s";
+  }
+
+  function rel(k){
+    var n = diffDays(k,today);
+    if(n<=0) return "today";
+    if(n===1) return "yesterday";
+    if(n<30) return n+" days ago";
+    var mo = Math.round(n/30);
+    return mo+" month"+(mo===1?"":"s")+" ago";
+  }
+  function groupLabel(k){
+    var n = diffDays(k,today);
+    if(n<7) return "This week";
+    if(n<14) return "Last week";
+    return local(k).toLocaleDateString(undefined,{month:"long",year:"numeric"});
+  }
+  function clock(ms){ return new Date(ms).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}); }
+
+  function updateCount(){
+    var t = $("note").value.trim();
+    var w = t ? t.split(/\s+/).length : 0;
+    var e = data[sel];
+    var s = w ? w+" word"+(w===1?"":"s") : "";
+    if(e && e.at) s += (s?" · ":"")+"last saved "+clock(e.at);
+    $("count").textContent = s;
+  }
+
+  var seen = {};
+  var io = ("IntersectionObserver" in window) ? new IntersectionObserver(function(es){
+    es.forEach(function(en){
+      if(en.isIntersecting){ en.target.classList.add("in"); seen[en.target.dataset.k] = 1; io.unobserve(en.target); }
+    });
+  },{threshold:.08}) : null;
+
+  var pastKey = null;
+  function renderPast(shuffle){
+    var sec = $("pastSec");
+    var lim = addDays(today,-2);
+    var c = Object.keys(data).filter(function(k){ return k<=lim && (data[k].note||"").length>=8; }).sort();
+    if(!c.length){ sec.hidden = true; return; }
+    sec.hidden = false;
+    if(shuffle || !pastKey || c.indexOf(pastKey)<0){
+      if(shuffle && c.length>1){
+        var pool = c.filter(function(k){ return k!==pastKey; });
+        pastKey = pool[Math.floor(Math.random()*pool.length)];
+      } else {
+        pastKey = c[(Math.floor(toUTC(today)/86400000)) % c.length];
+      }
+    }
+    var e = data[pastKey], box = $("past"); box.innerHTML = "";
+    var q = document.createElement("div"); q.className = "pq"; q.textContent = e.note;
+    var m = document.createElement("div"); m.className = "pm";
+    m.textContent = "You, "+rel(pastKey)+" · "+longDate(pastKey)+((e.mood!=null && MOODS[e.mood]) ? " · "+MOODS[e.mood][0] : "");
+    var row = document.createElement("div"); row.className = "prow";
+    var a = document.createElement("button"); a.className = "linkbtn"; a.textContent = "Another one";
+    a.onclick = function(){ renderPast(true); };
+    var b = document.createElement("button"); b.className = "linkbtn"; b.textContent = "Open that day";
+    b.onclick = function(){ select(pastKey); window.scrollTo({top:0,behavior:"smooth"}); };
+    row.appendChild(a); row.appendChild(b);
+    box.appendChild(q); box.appendChild(m); box.appendChild(row);
+    box.classList.remove("swap"); void box.offsetWidth; box.classList.add("swap");
+  }
+
+  /* ---------- renderers ---------- */
+  function renderRing(){
+    var s = stats();
+    var next = MILESTONES.filter(function(m){ return m>s.streak; })[0] || (s.streak+100);
+    var prev = 0;
+    MILESTONES.forEach(function(m){ if(m<=s.streak) prev = m; });
+    var frac = (s.streak-prev)/(next-prev);
+    setNum(s.streak);
+    $("unit").textContent = s.active ? (s.streak===1 ? "day free" : "days free") : (s.last ? "streak ended" : "not started");
+    $("prog").style.strokeDasharray = C;
+    $("prog").style.strokeDashoffset = s.active ? C*(1-Math.max(0.015,frac)) : C;
+    var g = $("goal"); g.innerHTML = "";
+    if(s.active){
+      var left = next-s.streak;
+      var a = document.createElement("span"); a.textContent = "Next goal ";
+      var b = document.createElement("b"); b.textContent = next+" days";
+      var c = document.createElement("span");
+      c.textContent = " · "+left+" to go"+(s.best>s.streak ? "  ·  best "+s.best : "")+(s.count>1 ? "  ·  streak #"+s.count : "");
+      g.appendChild(a); g.appendChild(b); g.appendChild(c);
+    } else if(s.last){
+      var t = document.createElement("span");
+      t.textContent = "Your last streak lasted "+s.last.days+" day"+(s.last.days===1?"":"s")+(s.best>s.last.days ? "  ·  best "+s.best : "")+". Every restart counts.";
+      g.appendChild(t);
+    } else {
+      var t2 = document.createElement("span"); t2.textContent = "Begin whenever you're ready.";
+      g.appendChild(t2);
+    }
+    renderStart();
+  }
+
+  function renderStart(){
+    var s = stats(), box = $("startbox"); box.innerHTML = "";
+    if(notice){
+      var n = document.createElement("div"); n.className = "notice"; n.textContent = notice; box.appendChild(n);
+    }
+    if(!s.active){
+      var b = document.createElement("button"); b.className = "bigstart";
+      b.textContent = meta.past.length ? "Start a new streak" : "Start my streak";
+      b.onclick = function(){ startStreak(today); };
+      box.appendChild(b);
+    }
+    var l = document.createElement("button"); l.className = "linkbtn";
+    l.textContent = s.active ? "Change start date" : "Started earlier? Pick the date";
+    l.onclick = function(){ showDate = !showDate; renderStart(); };
+    box.appendChild(l);
+    if(showDate){
+      var row = document.createElement("div"); row.className = "dateRow";
+      var inp = document.createElement("input"); inp.type = "date"; inp.max = today; inp.value = meta.start || today;
+      var go = document.createElement("button"); go.textContent = "Set start";
+      go.onclick = function(){ if(inp.value && inp.value<=today) startStreak(inp.value); };
+      row.appendChild(inp); row.appendChild(go); box.appendChild(row);
+    }
+  }
+
+  function renderWeek(){
+    var w = $("week"); w.innerHTML = "";
+    for(var i=6;i>=0;i--){
+      var k = addDays(today,-i);
+      var b = document.createElement("button");
+      b.className = "wd"+(k===sel?" sel":"")+(k===today?" today":"");
+      var l = document.createElement("span"); l.className="l";
+      l.textContent = local(k).toLocaleDateString(undefined,{weekday:"short"}).slice(0,3);
+      var c = document.createElement("span"); c.className = "c "+dayState(k);
+      c.textContent = local(k).getDate();
+      b.appendChild(l); b.appendChild(c);
+      (function(key){ b.onclick = function(){ select(key); }; })(k);
+      w.appendChild(b);
+    }
+  }
+
+  function renderHeat(){
+    var h = $("heat"); h.innerHTML = "";
+    var dow = (local(today).getDay()+6)%7; // Monday=0
+    var monday = addDays(today,-dow);
+    var start = addDays(monday,-14*7);
+    for(var col=0;col<15;col++){
+      for(var row=0;row<7;row++){
+        var k = addDays(start,col*7+row);
+        var b = document.createElement("button");
+        var st = k>today ? "future" : dayState(k);
+        b.className = "hc "+st+(k===sel?" sel":"");
+        b.title = longDate(k);
+        if(k<=today) (function(key){ b.onclick = function(){ select(key); window.scrollTo({top:0,behavior:"smooth"}); }; })(k);
+        h.appendChild(b);
+      }
+    }
+  }
+
+  function renderList(){
+    var list = $("list"); list.innerHTML = "";
+    var q = $("search").value.trim().toLowerCase();
+    var keys = Object.keys(data).sort().reverse().filter(function(k){
+      return !q || (data[k].note||"").toLowerCase().indexOf(q)>-1;
+    });
+    if(!keys.length){
+      var p = document.createElement("div"); p.className="empty";
+      p.textContent = q ? "No notes match that." : "Your entries will appear here.";
+      list.appendChild(p); return;
+    }
+    var lastG = null;
+    keys.forEach(function(k,i){
+      var e = data[k], g = groupLabel(k);
+      if(g!==lastG){
+        var h = document.createElement("div"); h.className = "wk"; h.textContent = g; list.appendChild(h); lastG = g;
+      }
+      var div = document.createElement("div"); div.className = "entry"+(e.status==="slip"?" slip":"");
+      div.style.transitionDelay = (i%6)*40+"ms";
+      var bub = document.createElement("div"); bub.className = "bubble";
+      var top = document.createElement("div"); top.className = "when";
+      var d = document.createElement("span"); d.textContent = longDate(k)+" · "+rel(k);
+      top.appendChild(d);
+      if(e.mood!=null && MOODS[e.mood]){
+        var mo = document.createElement("span"); mo.className = "m"; mo.textContent = MOODS[e.mood][0]; top.appendChild(mo);
+      }
+      bub.appendChild(top);
+      var n = document.createElement("div");
+      n.className = "note"+(e.note?"":" none");
+      n.textContent = e.note || "No note.";
+      bub.appendChild(n);
+      var foot = document.createElement("div"); foot.className = "foot";
+      foot.textContent = (e.status==="slip"?"Slipped":"Clean")+(e.at ? " · written "+clock(e.at) : "");
+      bub.appendChild(foot);
+      div.appendChild(bub);
+      div.onclick = function(){ select(k); window.scrollTo({top:0,behavior:"smooth"}); };
+      list.appendChild(div);
+      if(seen[k] || q || !io){ div.classList.add("in"); }
+      else { div.dataset.k = k; io.observe(div); }
+    });
+  }
+
+  function renderMoods(){
+    var box = $("moods"); box.innerHTML = "";
+    MOODS.forEach(function(m,i){
+      var b = document.createElement("button");
+      b.className = "mood"+(mood===i?" on":"");
+      b.textContent = m[0]; b.title = m[1]; b.setAttribute("aria-label",m[1]);
+      b.onclick = function(){ mood = (mood===i ? null : i); ensure(); commit(); renderMoods(); };
+      box.appendChild(b);
+    });
+  }
+
+  function renderCheckin(){
+    $("dayTitle").textContent = label(sel);
+    $("bClean").classList.toggle("on", status==="clean");
+    $("bSlip").classList.toggle("on", status==="slip");
+    $("del").hidden = !data[sel];
+    var h = "How did the day go?";
+    if(status==="clean") h = sel===today ? "Nice. One more day on the board." : "Logged as a clean day.";
+    if(status==="slip") h = "It happens. Write down what led to it, then start a new streak when you're ready.";
+    $("hint").textContent = h;
+    $("note").placeholder = status==="slip" ? "What was going on right before?" : "Write a few lines for future you…";
+    renderMoods();
+  }
+
+  function renderAll(){ renderRing(); renderWeek(); renderHeat(); renderList(); renderCheckin(); renderPast(); }
+
+  /* ---------- state ---------- */
+  function select(k){
+    flush();
+    sel = k;
+    var e = data[k];
+    status = e ? e.status : null;
+    mood = e && e.mood!=null ? e.mood : null;
+    $("note").value = e ? (e.note||"") : "";
+    updateCount();
+    renderWeek(); renderHeat(); renderCheckin();
+  }
+
+  function ensure(){ if(!status){ status = "clean"; } }
+
+  function commit(){
+    if(!status && !$("note").value.trim() && mood==null) return;
+    ensure();
+    data[sel] = {status:status, note:$("note").value.trim(), mood:mood, at:Date.now()};
+    persist();
+    if(status==="slip" && meta.start && sel>=meta.start && sel<=today){
+      var days = diffDays(meta.start, sel);
+      if(days>0) meta.past.push({start:meta.start, end:addDays(sel,-1), days:days});
+      meta.start = null; notice = ""; showDate = false;
+      saveMeta();
+    }
+    renderRing(); renderWeek(); renderHeat(); renderList(); 
+    $("bClean").classList.toggle("on", status==="clean");
+    $("bSlip").classList.toggle("on", status==="slip");
+    $("del").hidden = false;
+    updateCount();
+    var s = $("saved"); s.textContent = "Saved ✓"; s.classList.add("on");
+    clearTimeout(savedTimer); savedTimer = setTimeout(function(){ s.classList.remove("on"); }, 1400);
+  }
+  function flush(){ if(timer){ clearTimeout(timer); timer=null; commit(); } }
+
+  $("bClean").onclick = function(){
+    var was = status;
+    status = "clean"; commit(); renderCheckin();
+    if(was!=="clean" && sel===today){
+      var st = stats();
+      var big = st.active && MILESTONES.indexOf(st.streak)>-1;
+      confetti(big ? 150 : 45);
+      if(big) $("hint").textContent = "🎉 "+st.streak+" day"+(st.streak===1?"":"s")+". That's a milestone. Well done.";
+    }
+  };
+  $("bSlip").onclick = function(){ status="slip"; commit(); renderCheckin(); };
+  $("note").addEventListener("input", function(){
+    clearTimeout(timer);
+    clearTimeout(savedTimer);
+    var sv = $("saved"); sv.textContent = "Writing…"; sv.classList.add("on");
+    updateCount();
+    timer = setTimeout(function(){ timer=null; commit(); renderCheckin(); }, 600);
+  });
+  $("note").addEventListener("blur", flush);
+  window.addEventListener("beforeunload", flush);
+  $("search").addEventListener("input", renderList);
+
+  $("del").onclick = function(){
+    if(!confirm("Delete the entry for "+longDate(sel)+"?")) return;
+    delete data[sel]; persist();
+    status=null; mood=null; $("note").value="";
+    renderAll();
+  };
+
+  /* ---------- backup ---------- */
+  $("export").onclick = function(){
+    var blob = new Blob([JSON.stringify({version:2,entries:data,meta:meta},null,2)],{type:"application/json"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "daily-log-backup.json";
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+  $("import").onclick = function(){ $("file").click(); };
+  $("file").onchange = function(ev){
+    var f = ev.target.files[0]; if(!f) return;
+    var r = new FileReader();
+    r.onload = function(){
+      try{
+        var obj = JSON.parse(r.result);
+        var src = (obj && obj.entries) ? obj.entries : obj;
+        Object.keys(src).forEach(function(k){
+          var e = src[k];
+          if(/^\d{4}-\d{2}-\d{2}$/.test(k) && e && (e.status==="clean"||e.status==="slip")){
+            data[k] = {status:e.status, note:String(e.note||""), mood:(typeof e.mood==="number" && MOODS[e.mood])?e.mood:null, at:(typeof e.at==="number")?e.at:null};
+          }
+        });
+        persist();
+        if(obj && obj.meta){
+          meta = {start:obj.meta.start||null, past:Array.isArray(obj.meta.past)?obj.meta.past:[]};
+        } else if(!meta.start && !meta.past.length){
+          meta = migrate();
+        }
+        saveMeta(); select(sel); renderAll();
+      }catch(err){ alert("Couldn't read that file."); }
+    };
+    r.readAsText(f);
+  };
+
+  $("todayLabel").textContent = local(today).toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"});
+  initQuote();
+  tick(); setInterval(tick,1000);
+  select(today);
+  $("prog").style.strokeDasharray = C; $("prog").style.strokeDashoffset = C;
+  renderAll();
+})();
+</script>
+</body>
+</html>
